@@ -1,62 +1,162 @@
 package Server;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ClientHandler implements Runnable {
     private Socket socket;
-    // TODO: Declare a variable to hold the input stream from the socket
-    // TODO: Declare a variable to hold the output stream from the socket
+    private InputStream i;
+    private OutputStream os;
     private List<ClientHandler> allClients;
     private String username;
+    private int num = 0;
 
-    public ClientHandler() {
-        // TODO: Modify the constructor as needed
+    public ClientHandler(Socket socket,List<ClientHandler> clients) throws IOException {
+        this.socket = socket;
+        this.allClients =clients;
+        this.i = socket.getInputStream();
+        this.os = socket.getOutputStream();
     }
 
     @Override
     public void run() {
         try {
-            while (true) {
-                // TODO: Read incoming message from the input stream
-                // TODO: Process the message
-            }
-        } catch (Exception e) {
+            PrintWriter out = new PrintWriter(os, true);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(i));
 
+            while (true) {
+                String message = reader.readLine();
+                if (message == null) break;
+
+                if (message.startsWith("login ")) {
+                    String[] parts = message.split(" ");
+                    if (parts.length == 3) {
+                        String username = parts[1];
+                        String password = parts[2];
+                        handleLogin(username, password);
+                    }
+                    continue;
+                }
+                String formattedMessage = (username != null ? username : "Unknown") + ": " + message;
+                System.out.println(formattedMessage);
+                broadcast(formattedMessage);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
-            //TODO: Update the clients list in Server
+            num += 1;
+            System.out.println("Connection closed for " + (username != null ? username : "Unknown"));
         }
     }
 
 
     private void sendMessage(String msg){
-        //TODO: send the message (chat) to the client
+        try {
+            PrintWriter writer = new PrintWriter(os, true);
+            writer.println(msg);
+        } catch (Exception e) {
+            System.out.println("Error sending message to " + username + ": " + e.getMessage());
+        }
     }
     private void broadcast(String msg) throws IOException {
-        //TODO: send the message to every other user currently in the chat room
+        for (ClientHandler client : allClients) {
+            if (client != this) {
+                client.sendMessage(msg);
+            }
+        }
     }
 
     private void sendFileList(){
-        // TODO: List all files in the server directory
-        // TODO: Send a message containing file names as a comma-separated string
+        try {
+            File folder = new File("F:\\Seventh-Assignment-Socket-Programming\\src\\main\\resources\\Client\\user1");
+            File[] listOfFiles = folder.listFiles();
+            if (listOfFiles != null) {
+                sendMessage("no file found");
+                return;
+            }
+            StringBuilder filenames = new StringBuilder();
+            for (File file : listOfFiles) {
+                if (file.isFile()) {
+                    if (file.length() > 0) {
+                        filenames.append(", ");
+                    }
+                    filenames.append(file.getName());
+                }
+            }
+            sendMessage("files found: " + filenames);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
     private void sendFile(String fileName){
-        // TODO: Send file name and size to client
-        // TODO: Send file content as raw bytes
+        File file = new File(fileName);
+        try {
+            if (!file.exists()) {
+                System.out.println("File " + fileName + " does not exist");
+                return;
+            }
+            sendMessage("File: "+fileName+" "+file.length());
+            FileInputStream fis = new FileInputStream(file);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+            os.flush();
+            fis.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     private void receiveFile(String filename, int fileLength)
     {
-        // TODO: Receive uploaded file content and store it in a byte array
-        // TODO: after the upload is done, save it using saveUploadedFile
+        try {
+            byte[] buffer = new byte[fileLength];
+            int totalBytesRead = 0;
+            while (totalBytesRead != fileLength) {
+                int bytesRead = i.read(buffer, totalBytesRead, fileLength - totalBytesRead);
+                totalBytesRead += bytesRead;
+            }
+            if(totalBytesRead == fileLength){
+                saveUploadedFile(filename, buffer);
+                sendMessage("File uploaded successfully");
+            }
+            else {
+                sendMessage("file upload failed");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
     private void saveUploadedFile(String filename, byte[] data) throws IOException {
-        // TODO: Save the byte array to a file in the Server's resources folder
+        File directory = new File("F:\\Seventh-Assignment-Socket-Programming\\src\\main\\resources\\Server\\Files");
+        if (!directory.exists()) {
+            directory.mkdir();
+        }
+
+        File file = new File(directory, filename);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(data);
+            fos.flush();
+            System.out.println("File saved: " + file.getAbsolutePath());
+        }
     }
 
     private void handleLogin(String username, String password) throws IOException, ClassNotFoundException {
-        // TODO: Call Server.authenticate(username, password) to check credentials
-        // TODO: Send success or failure response to the client
+        boolean authenticated = Server.authenticate(username, password);
+
+        if (authenticated) {
+            this.username = username;
+            sendMessage("LOGIN_SUCCESS");
+            System.out.println(username + " logged in successfully.");
+        } else {
+            sendMessage("LOGIN_FAILED");
+            System.out.println("Failed login attempt for user: " + username);
+        }
     }
 
 }

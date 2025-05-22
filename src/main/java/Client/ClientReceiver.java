@@ -1,22 +1,28 @@
 package Client;
 
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Scanner;
+
 public class ClientReceiver implements Runnable {
-    // TODO: Declare a variable to hold the input stream from the socket
-    public ClientReceiver() {
-        // TODO: Modify this constructor to receive either a Socket or an InputStream as a parameter
-        // TODO: Initialize the input stream variable using the received parameter
+    private InputStream in;
+    public ClientReceiver(InputStream i) {
+        this.in = i;
     }
 
     @Override
     public void run() {
         try {
             while (true) {
-                //TODO: Listen for new messages from server
-                //TODO: print the  new message in CLI
+                Scanner scanner = new Scanner(in);
+                while (scanner.hasNextLine()) {
+                    String message = scanner.nextLine();
+                    System.out.println("\n[Server] " + message);
+                }
             }
-        } catch (Exception e) {
-
+        }catch (Exception e) {
+            System.out.println("Connection to server lost.");
         }
     }
 
