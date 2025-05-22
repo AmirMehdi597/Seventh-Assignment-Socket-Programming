@@ -73,7 +73,7 @@ public class ClientHandler implements Runnable {
         try {
             File folder = new File("F:\\Seventh-Assignment-Socket-Programming\\src\\main\\resources\\Client\\user1");
             File[] listOfFiles = folder.listFiles();
-            if (listOfFiles != null) {
+            if (listOfFiles == null) {
                 sendMessage("no file found");
                 return;
             }
