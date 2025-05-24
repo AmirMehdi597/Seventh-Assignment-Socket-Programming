@@ -90,11 +90,12 @@ public class Client {
         while (true) {
             message_string = scanner.nextLine();
 
-            if (message_string.equalsIgnoreCase("/exit")) {
-                sendChatMessage(message_string);
+            if (message_string.equals("exit")) {
                 break;
             }
-            sendChatMessage(message_string);
+            else {
+                sendChatMessage(message_string);
+            }
         }
         receiverThread.interrupt();
     }
